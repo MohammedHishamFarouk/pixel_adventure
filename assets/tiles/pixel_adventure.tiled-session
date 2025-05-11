@@ -5,14 +5,18 @@
     },
     "activeFile": "level-01.tmx",
     "expandedProjectPaths": [
+        "."
     ],
     "fileStates": {
         "level-01.tmx": {
-            "scale": 1,
-            "selectedLayer": 0,
+            "expandedObjectLayers": [
+                2
+            ],
+            "scale": 0.75,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 360.5,
-                "y": 161.5
+                "x": 253.99999999999994,
+                "y": 99.33333333333337
             }
         },
         "pixel_adventure.tsx": {
