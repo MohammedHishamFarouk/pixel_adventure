@@ -10,14 +10,14 @@
     "fileStates": {
         "level-01.tmx": {
             "expandedObjectLayers": [
-                2,
-                3
+                3,
+                2
             ],
             "scale": 1,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 283.5,
-                "y": 170.5
+                "x": 329.5,
+                "y": 180.5
             }
         },
         "level-02.tmx": {
@@ -48,6 +48,7 @@
         "level-02.tmx"
     ],
     "project": "pixel_adventure.tiled-project",
+    "property.type": "float",
     "recentFiles": [
         "pixel_adventure.tsx",
         "level-02.tmx",
