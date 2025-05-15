@@ -5,12 +5,13 @@ import 'package:flame/components.dart';
 import 'package:flutter/services.dart';
 import 'package:pixel_adventure/components/collision_block.dart';
 import 'package:pixel_adventure/components/fruit.dart';
+import 'package:pixel_adventure/components/saw.dart';
 import 'package:pixel_adventure/components/utils.dart';
 import 'package:pixel_adventure/pixel_adventure.dart';
 
 import 'custom_hitbox.dart';
 
-enum PlayerState { idle, running, jumping, falling }
+enum PlayerState { idle, running, jumping, falling, hit, appearing }
 
 class Player extends SpriteAnimationGroupComponent
     with HasGameReference<PixelAdventure>, KeyboardHandler, CollisionCallbacks {
@@ -22,16 +23,20 @@ class Player extends SpriteAnimationGroupComponent
   late final SpriteAnimation runAnimation;
   late final SpriteAnimation jumpingAnimation;
   late final SpriteAnimation fallingAnimation;
+  late final SpriteAnimation hitAnimation;
+  late final SpriteAnimation appearingAnimation;
 
   final double _gravity = 30;
   final double _jumpForce = 460;
   final double _terminalVelocity = 400;
   double horizontalMovement = 0;
   final double moveSpeed = 100;
+  Vector2 startingPosition = Vector2.zero();
   Vector2 velocity = Vector2.zero();
   bool isOnGround = false;
   bool hasJumped = false;
   bool goDown = false;
+  bool gotHit = false;
   List<CollisionBlock> collisionBlocks = [];
   CustomHitbox hitbox = CustomHitbox(
     offsetX: 10,
@@ -43,6 +48,8 @@ class Player extends SpriteAnimationGroupComponent
   @override
   FutureOr<void> onLoad() {
     _loadAllAnimations();
+    //we set our starting position before everything else to avoid it change due to any movement
+    startingPosition = Vector2(position.x, position.y);
     // debugMode = true;
     add(
       RectangleHitbox(
@@ -55,12 +62,14 @@ class Player extends SpriteAnimationGroupComponent
 
   @override
   void update(double dt) {
+    if (!gotHit) {
+      _updatePlayerState();
+      _updatePlayerMovement(dt);
+      _checkHorizontalCollisions();
+      _applyGravity(dt);
+      _checkVerticalCollisions();
+    }
     super.update(dt);
-    _updatePlayerState();
-    _updatePlayerMovement(dt);
-    _checkHorizontalCollisions();
-    _applyGravity(dt);
-    _checkVerticalCollisions();
   }
 
   @override
@@ -88,6 +97,7 @@ class Player extends SpriteAnimationGroupComponent
   void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
     super.onCollision(intersectionPoints, other);
     if (other is Fruit) other.collidedWithPlayer();
+    if (other is Saw) _reSpawn();
   }
 
   void _loadAllAnimations() {
@@ -95,12 +105,17 @@ class Player extends SpriteAnimationGroupComponent
     runAnimation = _spriteAnimation('Run', 12);
     jumpingAnimation = _spriteAnimation('Jump', 1);
     fallingAnimation = _spriteAnimation('Fall', 1);
+    hitAnimation = _spriteAnimation('Hit', 7);
+    appearingAnimation = _specialSpriteAnimation('Appearing', 7);
+
     //list of all the animations
     animations = {
       PlayerState.idle: idleAnimation,
       PlayerState.running: runAnimation,
       PlayerState.jumping: jumpingAnimation,
       PlayerState.falling: fallingAnimation,
+      PlayerState.hit: hitAnimation,
+      PlayerState.appearing: appearingAnimation,
     };
     //set the current animation
     current = PlayerState.idle;
@@ -113,6 +128,19 @@ class Player extends SpriteAnimationGroupComponent
         amount: amount,
         stepTime: stepTime,
         textureSize: Vector2.all(32),
+      ),
+    );
+  }
+
+  SpriteAnimation _specialSpriteAnimation(String state, int amount) {
+    print(current);
+    return SpriteAnimation.fromFrameData(
+      game.images.fromCache('Main Characters/$state (96x96).png'),
+      SpriteAnimationData.sequenced(
+        amount: amount,
+        stepTime: stepTime,
+        textureSize: Vector2.all(96),
+        loop: false,
       ),
     );
   }
@@ -199,5 +227,33 @@ class Player extends SpriteAnimationGroupComponent
         }
       }
     }
+  }
+
+  void _reSpawn() {
+    //since our animation stepTime is 50ms(0.05s) and it consists of 7 frames
+    //then the animation duration is 50ms(0.05s) * 7 = 350ms(0.35s)
+    const hitDuration = Duration(milliseconds: 50 * 7);
+    const appearingDuration = Duration(milliseconds: 350);
+    //this time is just what you think feels good
+    const canMoveDuration = Duration(milliseconds: 400);
+    gotHit = true;
+    current = PlayerState.hit;
+    Future.delayed(hitDuration, () {
+      scale.x = 1;
+      //since the Appearing animation is 96x96 and the player spriteAnimation is 64x64
+      //we need to offset the starting position for our player by getting the difference
+      //between them 96 - 64 = 32
+      //so that the appearing animation of our player is at the correct starting position
+      position = startingPosition - Vector2.all(32);
+      current = PlayerState.appearing;
+      Future.delayed(appearingDuration, () {
+        velocity = Vector2.zero();
+        position = startingPosition;
+        //we use this method because we don't know where the player will spawn
+        //it might spawn in the air on the ground or wherever
+        _updatePlayerState();
+        Future.delayed(canMoveDuration, () => gotHit = false);
+      });
+    });
   }
 }

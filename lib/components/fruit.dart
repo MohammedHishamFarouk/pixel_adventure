@@ -39,9 +39,6 @@ class Fruit extends SpriteAnimationComponent
   }
 
   void collidedWithPlayer() async {
-    //we use this to remove the component after it has been collected
-    //its built in with the SpriteAnimationComponent class
-    removeOnFinish = true;
     if (!_collected) {
       animation = SpriteAnimation.fromFrameData(
         game.images.fromCache('Items/Fruits/Collected.png'),
@@ -53,6 +50,9 @@ class Fruit extends SpriteAnimationComponent
         ),
       );
       _collected = true;
+      //we use this to remove the component after it has been collected
+      //its built in with the SpriteAnimationComponent class
+      removeOnFinish = true;
     }
   }
 }
