@@ -14,3 +14,11 @@ void main() async {
   PixelAdventure game = PixelAdventure();
   runApp(GameWidget(game: kDebugMode ? PixelAdventure() : game));
 }
+
+// whenever you make a game or copy a game and you need to do something or encounter a problem
+// think of what you want to do and how it should be done
+// try to break it into smaller steps to try to get to the final result in your head
+// so you can ask your self:
+// what is going to happen
+// why is it happening
+// when will it happen
