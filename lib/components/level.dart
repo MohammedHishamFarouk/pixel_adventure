@@ -1,13 +1,15 @@
 import 'dart:async';
 
 import 'package:flame/components.dart';
+import 'package:flame/parallax.dart';
 import 'package:flame_tiled/flame_tiled.dart';
+import 'package:flutter/material.dart';
 import 'package:pixel_adventure/components/collision_block.dart';
 import 'package:pixel_adventure/components/player.dart';
 import 'package:pixel_adventure/components/saw.dart';
 import 'package:pixel_adventure/pixel_adventure.dart';
 
-import 'background_tile.dart';
+import 'checkpoint.dart';
 import 'fruit.dart';
 
 class Level extends World with HasGameReference<PixelAdventure> {
@@ -31,27 +33,44 @@ class Level extends World with HasGameReference<PixelAdventure> {
   }
 
   void _scrollingBackground() {
+    // final backgroundLayer = level.tileMap.getLayer('Background');
+    // const tileSize = 64;
+    //
+    // final numTilesY = (game.size.y / tileSize).floor();
+    // final numTilesX = (game.size.x / tileSize).floor();
+    //
+    // if (backgroundLayer != null) {
+    //   final backgroundColor = backgroundLayer.properties.getValue(
+    //     'BackgroundColor',
+    //   );
+    //
+    //   for (double y = 0; y < game.size.y / numTilesY; y++) {
+    //     for (double x = 0; x < numTilesX; x++) {
+    //       final BackgroundTile backgroundTile = BackgroundTile(
+    //         color: backgroundColor ?? 'Gray',
+    //         position: Vector2(x * tileSize, y * tileSize - tileSize),
+    //       );
+    //       add(backgroundTile);
+    //     }
+    //   }
+    // }
+    //a more consistent way to move the background and much shorter
     final backgroundLayer = level.tileMap.getLayer('Background');
-    const tileSize = 64;
-
-    final numTilesY = (game.size.y / tileSize).floor();
-    final numTilesX = (game.size.x / tileSize).floor();
-
-    if (backgroundLayer != null) {
-      final backgroundColor = backgroundLayer.properties.getValue(
-        'BackgroundColor',
-      );
-
-      for (double y = 0; y < game.size.y / numTilesY; y++) {
-        for (double x = 0; x < numTilesX; x++) {
-          final BackgroundTile backgroundTile = BackgroundTile(
-            color: backgroundColor ?? 'Gray',
-            position: Vector2(x * tileSize, y * tileSize - tileSize),
-          );
-          add(backgroundTile);
-        }
-      }
-    }
+    final background = ParallaxComponent(
+      priority: -1,
+      parallax: Parallax([
+        ParallaxLayer(
+          ParallaxImage(
+            game.images.fromCache(
+              'Background/${backgroundLayer!.properties.getValue('BackgroundColor')}.png',
+            ),
+            repeat: ImageRepeat.repeat,
+            fill: LayerFill.none,
+          ),
+        ),
+      ], baseVelocity: Vector2(0, -50)),
+    );
+    add(background);
   }
 
   void _spawningObjects() {
@@ -85,6 +104,13 @@ class Level extends World with HasGameReference<PixelAdventure> {
               size: Vector2(spawnPoint.width, spawnPoint.height),
             );
             add(saw);
+            break;
+          case 'Checkpoint':
+            final checkpoint = Checkpoint(
+              position: Vector2(spawnPoint.x, spawnPoint.y),
+              size: Vector2(spawnPoint.width, spawnPoint.height),
+            );
+            add(checkpoint);
             break;
           default:
         }

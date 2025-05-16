@@ -9,9 +9,18 @@ import 'package:pixel_adventure/components/saw.dart';
 import 'package:pixel_adventure/components/utils.dart';
 import 'package:pixel_adventure/pixel_adventure.dart';
 
+import 'checkpoint.dart';
 import 'custom_hitbox.dart';
 
-enum PlayerState { idle, running, jumping, falling, hit, appearing }
+enum PlayerState {
+  idle,
+  running,
+  jumping,
+  falling,
+  hit,
+  appearing,
+  disappearing,
+}
 
 class Player extends SpriteAnimationGroupComponent
     with HasGameReference<PixelAdventure>, KeyboardHandler, CollisionCallbacks {
@@ -25,6 +34,7 @@ class Player extends SpriteAnimationGroupComponent
   late final SpriteAnimation fallingAnimation;
   late final SpriteAnimation hitAnimation;
   late final SpriteAnimation appearingAnimation;
+  late final SpriteAnimation disappearingAnimation;
 
   final double _gravity = 30;
   final double _jumpForce = 460;
@@ -37,6 +47,7 @@ class Player extends SpriteAnimationGroupComponent
   bool hasJumped = false;
   bool goDown = false;
   bool gotHit = false;
+  bool reachedCheckpoint = false;
   List<CollisionBlock> collisionBlocks = [];
   CustomHitbox hitbox = CustomHitbox(
     offsetX: 10,
@@ -62,7 +73,7 @@ class Player extends SpriteAnimationGroupComponent
 
   @override
   void update(double dt) {
-    if (!gotHit) {
+    if (!gotHit && !reachedCheckpoint) {
       _updatePlayerState();
       _updatePlayerMovement(dt);
       _checkHorizontalCollisions();
@@ -96,8 +107,11 @@ class Player extends SpriteAnimationGroupComponent
   @override
   void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
     super.onCollision(intersectionPoints, other);
-    if (other is Fruit) other.collidedWithPlayer();
-    if (other is Saw) _reSpawn();
+    if (!reachedCheckpoint) {
+      if (other is Fruit) other.collidedWithPlayer();
+      if (other is Saw) _respawn();
+      if (other is Checkpoint) _reachedCheckpoint();
+    }
   }
 
   void _loadAllAnimations() {
@@ -105,8 +119,9 @@ class Player extends SpriteAnimationGroupComponent
     runAnimation = _spriteAnimation('Run', 12);
     jumpingAnimation = _spriteAnimation('Jump', 1);
     fallingAnimation = _spriteAnimation('Fall', 1);
-    hitAnimation = _spriteAnimation('Hit', 7);
+    hitAnimation = _spriteAnimation('Hit', 7, loop: false);
     appearingAnimation = _specialSpriteAnimation('Appearing', 7);
+    disappearingAnimation = _specialSpriteAnimation('Desappearing', 7);
 
     //list of all the animations
     animations = {
@@ -116,24 +131,29 @@ class Player extends SpriteAnimationGroupComponent
       PlayerState.falling: fallingAnimation,
       PlayerState.hit: hitAnimation,
       PlayerState.appearing: appearingAnimation,
+      PlayerState.disappearing: disappearingAnimation,
     };
     //set the current animation
     current = PlayerState.idle;
   }
 
-  SpriteAnimation _spriteAnimation(String state, int amount) {
+  SpriteAnimation _spriteAnimation(
+    String state,
+    int amount, {
+    bool loop = true,
+  }) {
     return SpriteAnimation.fromFrameData(
       game.images.fromCache('Main Characters/$character/$state (32x32).png'),
       SpriteAnimationData.sequenced(
         amount: amount,
         stepTime: stepTime,
         textureSize: Vector2.all(32),
+        loop: loop,
       ),
     );
   }
 
   SpriteAnimation _specialSpriteAnimation(String state, int amount) {
-    print(current);
     return SpriteAnimation.fromFrameData(
       game.images.fromCache('Main Characters/$state (96x96).png'),
       SpriteAnimationData.sequenced(
@@ -229,31 +249,54 @@ class Player extends SpriteAnimationGroupComponent
     }
   }
 
-  void _reSpawn() {
-    //since our animation stepTime is 50ms(0.05s) and it consists of 7 frames
-    //then the animation duration is 50ms(0.05s) * 7 = 350ms(0.35s)
-    const hitDuration = Duration(milliseconds: 50 * 7);
-    const appearingDuration = Duration(milliseconds: 350);
-    //this time is just what you think feels good
-    const canMoveDuration = Duration(milliseconds: 400);
+  void _respawn() {
     gotHit = true;
     current = PlayerState.hit;
-    Future.delayed(hitDuration, () {
+    final hitAnimation = animationTickers![PlayerState.hit];
+    hitAnimation!.completed.whenComplete(() {
+      current = PlayerState.appearing;
       scale.x = 1;
       //since the Appearing animation is 96x96 and the player spriteAnimation is 64x64
       //we need to offset the starting position for our player by getting the difference
       //between them 96 - 64 = 32
       //so that the appearing animation of our player is at the correct starting position
       position = startingPosition - Vector2.all(32);
-      current = PlayerState.appearing;
-      Future.delayed(appearingDuration, () {
+      hitAnimation.reset();
+      final appearingAnimation = animationTickers![PlayerState.appearing];
+      appearingAnimation!.completed.whenComplete(() {
         velocity = Vector2.zero();
         position = startingPosition;
         //we use this method because we don't know where the player will spawn
         //it might spawn in the air on the ground or wherever
         _updatePlayerState();
-        Future.delayed(canMoveDuration, () => gotHit = false);
+        gotHit = false;
+        appearingAnimation.reset();
       });
     });
   }
+
+  void _reachedCheckpoint() {
+    reachedCheckpoint = true;
+    current = PlayerState.disappearing;
+    scale.x = 1;
+    //since the Appearing animation is 96x96 and the player spriteAnimation is 64x64
+    //we need to offset the starting position for our player by getting the difference
+    //between them 96 - 64 = 32
+    //so that the appearing animation of our player is at the correct starting position
+    if (scale.x > 0) {
+      position = position - Vector2.all(32);
+    } else if (scale.x < 0) {
+      position = position + Vector2(32, -32);
+    }
+    final disappearingAnimation = animationTickers![PlayerState.disappearing];
+    disappearingAnimation!.completed.whenComplete(() {
+      removeFromParent();
+      reachedCheckpoint = false;
+      disappearingAnimation.reset();
+    });
+  }
 }
+
+//since our animation stepTime is 50ms(0.05s) and it consists of 7 frames
+//then the animation duration is 50ms(0.05s) * 7 = 350ms(0.35s)
+//const hitDuration = Duration(milliseconds: 50 * 7);
