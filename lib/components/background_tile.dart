@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flame/components.dart';
 import 'package:pixel_adventure/pixel_adventure.dart';
 
+//old way of moving the background
+
 class BackgroundTile extends SpriteComponent
     with HasGameReference<PixelAdventure> {
   final String color;
